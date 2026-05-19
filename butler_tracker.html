@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Butler Greeting Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --gold:#B8923A; --gold-light:#D4AF6A; --gold-pale:#ECD9A8; --gold-dim:#7A5E1E;
+  --black:#0A0A0A; --charcoal:#141414; --ink:#1C1C1C; --panel:#111111;
+  --surface:#1A1A1A; --surface2:#222222;
+  --border:rgba(184,146,58,0.18); --border-hi:rgba(184,146,58,0.45);
+  --white:#FFFFFF; --muted:rgba(255,255,255,0.38); --muted2:rgba(255,255,255,0.18);
+  --green:#4A9B6F; --green-bg:rgba(74,155,111,0.12); --green-txt:#7DCFA0;
+  --red:#C0392B; --red-bg:rgba(192,57,43,0.12); --red-txt:#FF8A80;
+  --amber:#B96A1A; --amber-bg:rgba(185,106,26,0.12); --amber-txt:#F0A860;
+  --blue:#3A7BB8; --blue-bg:rgba(58,123,184,0.12); --blue-txt:#7DB0E0;
+}
+html,body { height:100%; background:var(--black); color:var(--white); font-family:'Jost',sans-serif; font-weight:300; }
+body::after { content:''; position:fixed; inset:0; pointer-events:none; z-index:0; opacity:0.5; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E"); }
+.top-rule { height:1px; background:linear-gradient(90deg,transparent 0%,var(--gold-dim) 20%,var(--gold-light) 50%,var(--gold-dim) 80%,transparent 100%); position:relative; z-index:10; }
+
+.setup-screen { display:none; position:fixed; inset:0; background:var(--black); z-index:300; align-items:center; justify-content:center; padding:30px; }
+.setup-screen.show { display:flex; }
+.setup-box { max-width:560px; width:100%; background:var(--charcoal); border:1px solid var(--gold); padding:38px 36px; border-radius:2px; position:relative; }
+.setup-box::before { content:''; position:absolute; top:-1px; left:24px; right:24px; height:1px; background:var(--gold-light); }
+.setup-ey { font-size:9px; letter-spacing:0.24em; text-transform:uppercase; color:var(--gold); margin-bottom:10px; }
+.setup-t { font-family:'Playfair Display',serif; font-size:26px; color:var(--white); margin-bottom:8px; letter-spacing:0.04em; }
+.setup-sub { font-size:13px; color:rgba(255,255,255,0.6); line-height:1.6; margin-bottom:24px; }
+.setup-input { width:100%; background:var(--surface); border:1px solid var(--border); padding:12px 14px; color:var(--white); font-family:'Jost',sans-serif; font-size:13px; outline:none; margin-bottom:14px; }
+.setup-input:focus { border-color:var(--gold); }
+.setup-btn { width:100%; padding:14px; background:transparent; border:1px solid var(--gold); color:var(--gold-light); font-family:'Playfair Display',serif; font-size:14px; font-style:italic; letter-spacing:0.12em; cursor:pointer; transition:all 0.25s; }
+.setup-btn:hover { background:var(--gold); color:var(--black); }
+
+.header { position:relative; z-index:10; background:var(--charcoal); border-bottom:1px solid var(--border); padding:0 36px; display:flex; align-items:center; justify-content:space-between; height:72px; gap:20px; }
+.h-title { font-family:'Playfair Display',serif; font-size:18px; font-weight:600; color:var(--white); letter-spacing:0.14em; text-transform:uppercase; }
+.h-sub { font-size:9px; letter-spacing:0.24em; text-transform:uppercase; color:var(--gold); font-weight:400; margin-top:3px; display:block; }
+.header-nav { display:flex; gap:4px; }
+.nav-btn { background:transparent; border:1px solid var(--border); color:var(--muted); font-family:'Jost',sans-serif; font-size:10px; letter-spacing:0.14em; text-transform:uppercase; padding:8px 16px; cursor:pointer; transition:all 0.2s; border-radius:1px; }
+.nav-btn:hover { border-color:var(--gold-dim); color:var(--gold-pale); }
+.nav-btn.active { background:var(--gold); border-color:var(--gold); color:var(--black); font-weight:600; }
+.header-right { display:flex; align-items:center; gap:18px; }
+.sync-indicator { display:flex; align-items:center; gap:7px; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); }
+.sync-dot { width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 6px var(--green); }
+.sync-dot.offline { background:var(--red); box-shadow:0 0 6px var(--red); }
+.sync-dot.syncing { background:var(--amber); box-shadow:0 0 6px var(--amber); animation:pulse 1s infinite; }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+.h-date { font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--gold-light); }
+.h-time { font-family:'Playfair Display',serif; font-size:22px; color:var(--white); letter-spacing:0.04em; line-height:1; margin-top:2px; text-align:right; }
+.settings-btn { background:transparent; border:1px solid var(--border); color:var(--muted); font-size:14px; padding:6px 10px; cursor:pointer; transition:all 0.2s; }
+.settings-btn:hover { border-color:var(--gold-dim); color:var(--gold-pale); }
+
+.view { display:none; }
+.view.active { display:block; }
+.layout { display:grid; grid-template-columns:380px 1fr; height:calc(100vh - 73px); position:relative; z-index:5; }
+.form-panel { background:var(--panel); border-right:1px solid var(--border); overflow-y:auto; padding:28px 26px 40px; scrollbar-width:thin; scrollbar-color:var(--gold-dim) transparent; }
+.form-panel::-webkit-scrollbar { width:3px; }
+.form-panel::-webkit-scrollbar-thumb { background:var(--gold-dim); border-radius:2px; }
+
+.edit-banner { display:none; background:var(--blue-bg); border-left:2px solid var(--blue); padding:12px 16px; margin-bottom:18px; border-radius:0 3px 3px 0; }
+.edit-banner.show { display:flex; align-items:center; justify-content:space-between; gap:10px; animation:rev 0.3s; }
+.edit-banner-text { font-size:11px; color:var(--blue-txt); letter-spacing:0.06em; }
+.edit-banner-text strong { display:block; font-size:9px; letter-spacing:0.2em; text-transform:uppercase; margin-bottom:2px; }
+.edit-cancel { background:transparent; border:1px solid var(--blue); color:var(--blue-txt); font-size:9px; padding:5px 10px; cursor:pointer; letter-spacing:0.1em; text-transform:uppercase; }
+
+.sh { display:flex; align-items:center; gap:12px; margin-bottom:16px; margin-top:22px; }
+.sh:first-of-type { margin-top:0; }
+.sh-line { flex:1; height:1px; background:linear-gradient(90deg,var(--gold-dim),transparent); }
+.sh-text { font-size:9px; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold); font-weight:500; white-space:nowrap; }
+.f { margin-bottom:14px; }
+.fl { display:block; font-size:9px; letter-spacing:0.18em; text-transform:uppercase; color:var(--muted); font-weight:500; margin-bottom:7px; }
+.fr { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+input[type="text"], input[type="number"], input[type="time"], input[type="date"] {
+  width:100%; background:var(--surface); border:1px solid var(--border); border-radius:2px;
+  padding:10px 13px; color:var(--white); font-family:'Jost',sans-serif;
+  font-size:13px; font-weight:300; outline:none; transition:border-color 0.2s; letter-spacing:0.04em;
+}
+input:focus { border-color:var(--gold); }
+input::placeholder { color:var(--muted2); }
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="date"]::-webkit-calendar-picker-indicator { filter:invert(0.4); }
+
+.chips { display:flex; flex-wrap:wrap; gap:7px; }
+.chip { padding:8px 15px; border:1px solid var(--border); border-radius:1px; background:transparent; color:var(--muted); font-family:'Jost',sans-serif; font-size:11px; font-weight:400; letter-spacing:0.1em; cursor:pointer; transition:all 0.2s; user-select:none; white-space:nowrap; }
+.chip:hover { border-color:var(--gold-dim); color:var(--gold-pale); background:rgba(184,146,58,0.06); }
+.chip.on { background:var(--gold); border-color:var(--gold); color:var(--black); font-weight:600; }
+.chip.on-g { background:var(--green); border-color:var(--green); color:var(--white); font-weight:500; }
+.chip.on-r { background:var(--red); border-color:var(--red); color:var(--white); font-weight:500; }
+.other-input { display:none; margin-top:10px; }
+.other-input.show { display:block; animation:rev 0.3s; }
+
+.guide { border-left:2px solid; padding:13px 16px; margin-top:12px; border-radius:0 3px 3px 0; display:none; animation:rev 0.28s; }
+.guide.show { display:block; }
+.guide.gold { border-color:var(--gold); background:rgba(184,146,58,0.07); }
+.guide.green { border-color:var(--green); background:var(--green-bg); }
+.guide.red { border-color:var(--red); background:var(--red-bg); }
+.guide.amber { border-color:var(--amber); background:var(--amber-bg); }
+.guide-ey { font-size:9px; letter-spacing:0.2em; text-transform:uppercase; font-weight:600; margin-bottom:7px; }
+.guide.gold .guide-ey { color:var(--gold-light); }
+.guide.green .guide-ey { color:var(--green-txt); }
+.guide.red .guide-ey { color:var(--red-txt); }
+.guide.amber .guide-ey { color:var(--amber-txt); }
+.guide-body { font-size:12.5px; line-height:1.65; color:rgba(255,255,255,0.72); }
+.guide-body strong { color:var(--white); font-weight:500; }
+
+.btn-log { width:100%; margin-top:22px; padding:14px; background:transparent; border:1px solid var(--gold); color:var(--gold-light); font-family:'Playfair Display',serif; font-size:14px; font-style:italic; letter-spacing:0.12em; cursor:pointer; transition:all 0.25s; position:relative; overflow:hidden; }
+.btn-log::before { content:''; position:absolute; inset:0; background:var(--gold); transform:translateX(-100%); transition:transform 0.3s; }
+.btn-log:hover::before { transform:translateX(0); }
+.btn-log:hover { color:var(--black); }
+.btn-log:disabled { opacity:0.5; cursor:not-allowed; }
+.btn-log:disabled::before { transform:translateX(-100%); }
+.btn-log span { position:relative; z-index:1; }
+.btn-log.editing { border-color:var(--blue); color:var(--blue-txt); }
+.btn-log.editing::before { background:var(--blue); }
+.btn-log.editing:hover { color:var(--white); }
+
+@keyframes rev { from { opacity:0; transform:translateY(-5px); } to { opacity:1; transform:translateY(0); } }
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+
+.ms, .gs { display:none; }
+.ms.show, .gs.show { display:block; animation:rev 0.3s; }
+hr.div { border:none; border-top:1px solid var(--border); margin:20px 0; }
+
+.check-row { display:flex; gap:14px; margin-top:10px; }
+.check-item { display:flex; align-items:center; gap:8px; cursor:pointer; font-size:11px; color:var(--muted); letter-spacing:0.06em; }
+.check-item input[type="checkbox"] { width:16px; height:16px; accent-color:var(--gold); cursor:pointer; }
+.check-item.checked { color:var(--gold-light); }
+
+.log-panel { background:var(--ink); overflow-y:auto; display:flex; flex-direction:column; scrollbar-width:thin; scrollbar-color:var(--gold-dim) transparent; }
+.log-panel::-webkit-scrollbar { width:3px; }
+.log-panel::-webkit-scrollbar-thumb { background:var(--gold-dim); border-radius:2px; }
+
+.stats { display:grid; grid-template-columns:repeat(4,1fr); border-bottom:1px solid var(--border); }
+.stat { padding:20px 24px; border-right:1px solid var(--border); }
+.stat:last-child { border-right:none; }
+.stat-v { font-family:'Playfair Display',serif; font-size:32px; font-weight:400; color:var(--gold-light); display:block; line-height:1; }
+.stat-l { font-size:9px; letter-spacing:0.18em; text-transform:uppercase; color:var(--muted); margin-top:6px; display:block; }
+.stat.g .stat-v { color:var(--green-txt); }
+.stat.r .stat-v { color:var(--red-txt); }
+.stat.p .stat-v { color:var(--gold-pale); }
+
+.log-body { flex:1; padding:22px 26px; }
+.log-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px; }
+.log-heading { font-family:'Playfair Display',serif; font-size:17px; font-weight:400; color:var(--white); letter-spacing:0.06em; }
+.log-controls { display:flex; gap:10px; align-items:center; }
+.log-controls input[type="date"] { padding:6px 10px; font-size:11px; width:auto; }
+.filter-select { background:var(--surface); border:1px solid var(--border); color:var(--white); font-family:'Jost',sans-serif; font-size:11px; padding:6px 10px; outline:none; cursor:pointer; }
+.filter-select:focus { border-color:var(--gold); }
+
+.co-banner { background:rgba(184,146,58,0.08); border-left:2px solid var(--gold); padding:11px 16px; margin-bottom:14px; border-radius:0 3px 3px 0; font-size:11.5px; color:var(--gold-pale); letter-spacing:0.06em; }
+.co-banner strong { color:var(--gold-light); font-weight:600; }
+
+.loading { text-align:center; padding:60px 20px; color:var(--muted); }
+.loading::after { content:''; display:inline-block; width:20px; height:20px; border:2px solid var(--gold-dim); border-top-color:var(--gold-light); border-radius:50%; animation:spin 0.8s linear infinite; margin-left:10px; vertical-align:middle; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+.empty { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 30px; text-align:center; color:var(--muted2); }
+.empty-orn { font-family:'Playfair Display',serif; font-size:48px; color:var(--gold-dim); margin-bottom:16px; opacity:0.5; }
+.empty-txt { font-size:13px; letter-spacing:0.08em; line-height:1.8; }
+
+.entry { border:1px solid var(--border); border-radius:2px; padding:16px 20px; margin-bottom:10px; background:var(--surface); animation:rev 0.3s; transition:border-color 0.2s; position:relative; overflow:hidden; }
+.entry::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; }
+.entry.eg::before { background:var(--green); }
+.entry.em::before { background:var(--red); }
+.entry:hover { border-color:var(--border-hi); }
+.entry.is-carry { background:linear-gradient(to right, rgba(184,146,58,0.06), var(--surface)); }
+.entry-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; gap:10px; }
+.e-room { font-size:10px; letter-spacing:0.18em; text-transform:uppercase; color:var(--gold); margin-bottom:3px; font-weight:500; display:flex; align-items:center; gap:8px; }
+.e-room .carry-badge { background:var(--gold); color:var(--black); font-size:8px; padding:1px 6px; letter-spacing:0.15em; font-weight:600; border-radius:1px; }
+.e-guest { font-family:'Playfair Display',serif; font-size:18px; font-weight:400; color:var(--white); letter-spacing:0.03em; }
+.e-meta { text-align:right; }
+.e-time { font-family:'Playfair Display',serif; font-size:18px; color:var(--muted); }
+.e-date { font-size:10px; color:var(--muted2); letter-spacing:0.08em; margin-top:2px; }
+.entry-actions { display:flex; gap:6px; margin-top:2px; }
+.e-act-btn { background:transparent; border:1px solid var(--border); color:var(--muted); font-size:9px; letter-spacing:0.12em; text-transform:uppercase; padding:4px 10px; cursor:pointer; transition:all 0.2s; border-radius:1px; }
+.e-act-btn:hover { border-color:var(--gold-dim); color:var(--gold-pale); }
+.e-act-btn.del:hover { border-color:var(--red); color:var(--red-txt); }
+.e-tags { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+.tag { padding:4px 10px; font-size:10px; letter-spacing:0.1em; text-transform:uppercase; font-weight:500; border-radius:1px; }
+.tag.tg { background:var(--green-bg); color:var(--green-txt); border:1px solid rgba(74,155,111,0.25); }
+.tag.tm { background:var(--red-bg); color:var(--red-txt); border:1px solid rgba(192,57,43,0.25); }
+.tag.tr { background:rgba(255,255,255,0.05); color:var(--muted); border:1px solid var(--border); }
+.tag.to { background:rgba(184,146,58,0.12); color:var(--gold-light); border:1px solid rgba(184,146,58,0.25); }
+.tag.tb { background:rgba(58,123,184,0.15); color:var(--blue-txt); border:1px solid rgba(58,123,184,0.3); }
+.fup { padding:10px 14px; border-left:2px solid var(--amber); background:var(--amber-bg); font-size:12px; color:var(--amber-txt); line-height:1.55; margin-top:8px; }
+.fup strong { display:block; font-weight:600; font-size:10px; letter-spacing:0.14em; text-transform:uppercase; margin-bottom:3px; }
+.fup.urg { border-color:var(--red); background:var(--red-bg); color:var(--red-txt); }
+.fup.urg strong { color:var(--red-txt); }
+.card-trace { margin-top:8px; padding:8px 12px; background:rgba(255,255,255,0.03); border:1px dashed var(--border); border-radius:1px; font-size:10.5px; color:var(--muted); display:flex; gap:14px; }
+.card-trace .yes { color:var(--green-txt); }
+.card-trace .no  { color:var(--red-txt); }
+.e-notes { font-size:11.5px; color:var(--muted2); margin-top:8px; letter-spacing:0.04em; }
+
+.summary-view { padding:30px 40px; height:calc(100vh - 73px); overflow-y:auto; position:relative; z-index:5; }
+.summary-tabs { display:flex; gap:8px; margin-bottom:24px; border-bottom:1px solid var(--border); }
+.s-tab { background:transparent; border:none; border-bottom:2px solid transparent; color:var(--muted); font-family:'Jost',sans-serif; font-size:11px; letter-spacing:0.16em; text-transform:uppercase; padding:10px 18px; cursor:pointer; transition:all 0.2s; }
+.s-tab:hover { color:var(--gold-pale); }
+.s-tab.active { color:var(--gold); border-bottom-color:var(--gold); }
+.s-section { display:none; animation:fadeIn 0.3s; }
+.s-section.active { display:block; }
+.s-title { font-family:'Playfair Display',serif; font-size:24px; font-weight:400; color:var(--white); letter-spacing:0.04em; margin-bottom:6px; }
+.s-sub { font-size:11px; color:var(--muted); letter-spacing:0.12em; text-transform:uppercase; margin-bottom:24px; }
+.s-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px; margin-bottom:28px; }
+.s-card { background:var(--surface); border:1px solid var(--border); padding:20px 22px; border-radius:2px; position:relative; overflow:hidden; }
+.s-card::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg, transparent, var(--gold-dim), transparent); }
+.s-card-l { font-size:9px; letter-spacing:0.2em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+.s-card-v { font-family:'Playfair Display',serif; font-size:40px; font-weight:400; color:var(--gold-light); line-height:1; }
+.s-card.green .s-card-v { color:var(--green-txt); }
+.s-card.red   .s-card-v { color:var(--red-txt); }
+.s-card-sub { font-size:10px; color:var(--muted); margin-top:6px; letter-spacing:0.08em; }
+.s-row-title { font-family:'Playfair Display',serif; font-size:14px; color:var(--gold); letter-spacing:0.14em; text-transform:uppercase; margin:32px 0 14px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+.s-table { width:100%; border-collapse:collapse; background:var(--surface); border:1px solid var(--border); }
+.s-table th, .s-table td { padding:12px 16px; text-align:left; font-size:12px; border-bottom:1px solid var(--border); }
+.s-table th { font-size:9px; letter-spacing:0.18em; text-transform:uppercase; color:var(--gold); font-weight:500; background:var(--surface2); }
+.s-table td { color:rgba(255,255,255,0.75); letter-spacing:0.04em; }
+.s-table tr:last-child td { border-bottom:none; }
+.s-table tr:hover td { background:rgba(184,146,58,0.04); }
+.s-table .num { font-family:'Playfair Display',serif; font-size:16px; color:var(--gold-light); }
+.s-table .pct { font-family:'Playfair Display',serif; font-size:16px; color:var(--green-txt); }
+.s-table .pct.low { color:var(--red-txt); }
+.s-table .pct.mid { color:var(--amber-txt); }
+.bar-row { display:flex; align-items:center; gap:14px; margin-bottom:10px; }
+.bar-label { width:200px; font-size:11px; color:rgba(255,255,255,0.7); letter-spacing:0.06em; }
+.bar-track { flex:1; height:10px; background:var(--surface); border:1px solid var(--border); overflow:hidden; }
+.bar-fill { height:100%; background:linear-gradient(90deg, var(--gold-dim), var(--gold-light)); transition:width 0.5s; }
+.bar-value { width:50px; text-align:right; font-family:'Playfair Display',serif; font-size:14px; color:var(--gold-light); }
+
+.modal-back { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:200; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
+.modal-back.show { display:flex; animation:fadeIn 0.2s; }
+.modal { background:var(--charcoal); border:1px solid var(--gold); padding:30px 32px; max-width:440px; width:90%; border-radius:2px; position:relative; }
+.modal::before { content:''; position:absolute; top:-1px; left:20px; right:20px; height:1px; background:var(--gold-light); }
+.modal-ey { font-size:9px; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold); margin-bottom:10px; }
+.modal-t { font-family:'Playfair Display',serif; font-size:20px; color:var(--white); margin-bottom:12px; letter-spacing:0.04em; }
+.modal-b { font-size:13px; color:rgba(255,255,255,0.7); line-height:1.6; margin-bottom:24px; }
+.modal-b strong { color:var(--gold-light); font-weight:500; }
+.modal-actions { display:flex; gap:10px; justify-content:flex-end; }
+.modal-btn { padding:10px 22px; border:1px solid var(--border); background:transparent; color:var(--muted); font-family:'Jost',sans-serif; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; cursor:pointer; transition:all 0.2s; }
+.modal-btn:hover { border-color:var(--gold-dim); color:var(--gold-pale); }
+.modal-btn.primary { border-color:var(--gold); color:var(--gold-light); }
+.modal-btn.primary:hover { background:var(--gold); color:var(--black); }
+.modal-btn.danger:hover { border-color:var(--red); color:var(--red-txt); }
+
+.toast { position:fixed; bottom:28px; right:28px; background:var(--charcoal); border:1px solid var(--gold); padding:14px 22px; font-size:13px; color:var(--white); letter-spacing:0.05em; box-shadow:0 8px 32px rgba(0,0,0,0.5); transform:translateY(16px); opacity:0; transition:all 0.3s; z-index:150; min-width:260px; }
+.toast.show { transform:translateY(0); opacity:1; }
+.toast-icon { margin-right:10px; }
+</style>
+</head>
+<body>
+
+<div class="setup-screen" id="setupScreen">
+  <div class="setup-box">
+    <div class="setup-ey">First Time Setup</div>
+    <div class="setup-t">Connect to Google Sheets</div>
+    <div class="setup-sub">Paste the Apps Script Web App URL from your manager. This connects all 18 butlers to the same shared database.</div>
+    <input type="text" class="setup-input" id="apiUrlInput" placeholder="https://script.google.com/macros/s/.../exec">
+    <input type="text" class="setup-input" id="butlerNameInput" placeholder="Your name (e.g. John D.)">
+    <button class="setup-btn" onclick="saveSetup()">Connect</button>
+  </div>
+</div>
+
+<div class="top-rule"></div>
+
+<header class="header">
+  <div>
+    <div class="h-title">Butler Greeting Tracker</div>
+    <span class="h-sub">Shared · Real-time</span>
+  </div>
+  <div class="header-nav">
+    <button class="nav-btn active" data-view="tracker" onclick="showView('tracker', this)">Daily Log</button>
+    <button class="nav-btn" data-view="summary" onclick="showView('summary', this)">Summary</button>
+  </div>
+  <div class="header-right">
+    <div class="sync-indicator">
+      <span class="sync-dot" id="syncDot"></span>
+      <span id="syncText">Synced</span>
+    </div>
+    <button class="settings-btn" id="refreshBtn" onclick="manualRefresh()" title="Refresh data">↻</button>
+    <button class="settings-btn" onclick="openSettings()">⚙</button>
+    <div>
+      <div class="h-date" id="hDate"></div>
+      <div class="h-time" id="hTime"></div>
+    </div>
+  </div>
+</header>
+
+<div class="view active" id="view-tracker">
+<div class="layout">
+  <div class="form-panel">
+
+    <div class="edit-banner" id="editBanner">
+      <div class="edit-banner-text"><strong>Edit Mode</strong>Updating — <span id="editLabel"></span></div>
+      <button class="edit-cancel" onclick="cancelEdit()">Cancel</button>
+    </div>
+
+    <div class="sh"><span class="sh-text">Guest Information</span><div class="sh-line"></div></div>
+
+    <div class="fr">
+      <div class="f"><label class="fl">Suite / Room No.</label><input type="text" id="roomNo" placeholder="e.g. 2501"></div>
+      <div class="f"><label class="fl">Nights Stay</label><input type="number" id="nights" placeholder="e.g. 3" min="1"></div>
+    </div>
+    <div class="f"><label class="fl">Guest Name</label><input type="text" id="guestName" placeholder="Mr. / Ms. Family Name"></div>
+
+    <div class="fr">
+      <div class="f"><label class="fl">Attempt Time</label><input type="time" id="aTime"></div>
+      <div class="f">
+        <label class="fl">Attempt No.</label>
+        <div class="chips" style="margin-top:2px">
+          <div class="chip" data-g="att" data-v="1st" onclick="pick(this)">1st</div>
+          <div class="chip" data-g="att" data-v="2nd" onclick="pick(this)">2nd</div>
+          <div class="chip" data-g="att" data-v="3rd" onclick="pick(this)">3rd</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sh"><span class="sh-text">Greeting Outcome</span><div class="sh-line"></div></div>
+
+    <div class="f">
+      <label class="fl">Did you meet the guest?</label>
+      <div class="chips">
+        <div class="chip" data-g="status" data-v="Greeted" onclick="setStatus(this)">✦ &nbsp;Greeted</div>
+        <div class="chip" data-g="status" data-v="Missed"  onclick="setStatus(this)">✕ &nbsp;Missed</div>
+      </div>
+    </div>
+
+    <div class="ms" id="missedSec">
+      <div class="f">
+        <label class="fl">Reason Not Met</label>
+        <div class="chips">
+          <div class="chip" data-g="reason" data-v="Guest Not In Room"          onclick="setReason(this)">Not In Room</div>
+          <div class="chip" data-g="reason" data-v="Q Room — Quiet Please"      onclick="setReason(this)">Q Room</div>
+          <div class="chip" data-g="reason" data-v="DND — Do Not Disturb"       onclick="setReason(this)">DND</div>
+          <div class="chip" data-g="reason" data-v="Come Later (Guest Request)" onclick="setReason(this)">Come Later</div>
+          <div class="chip" data-g="reason" data-v="Other"                      onclick="setReason(this)">Other</div>
+        </div>
+      </div>
+      <div class="guide red" id="reasonGuide">
+        <div class="guide-ey">Protocol</div>
+        <div class="guide-body" id="reasonTxt"></div>
+      </div>
+      <div class="f" style="margin-top:16px">
+        <label class="fl">Welcome Card & Trace Status</label>
+        <div class="check-row">
+          <label class="check-item" id="cardItem"><input type="checkbox" id="chkCard" onchange="toggleCheck(this,'cardItem')"><span>Welcome Card Placed</span></label>
+          <label class="check-item" id="traceItem"><input type="checkbox" id="chkTrace" onchange="toggleCheck(this,'traceItem')"><span>Trace Set in System</span></label>
+        </div>
+      </div>
+      <div class="f" style="margin-top:16px">
+        <label class="fl">Did the guest arrive after 10 PM?</label>
+        <div class="chips">
+          <div class="chip" data-g="late" data-v="yes" onclick="pick(this);reFup()">Yes</div>
+          <div class="chip" data-g="late" data-v="no"  onclick="pick(this);reFup()">No</div>
+        </div>
+      </div>
+      <div class="guide amber" id="fupGuide">
+        <div class="guide-ey">Follow-Up Action Required</div>
+        <div class="guide-body" id="fupTxt"></div>
+      </div>
+    </div>
+
+    <div class="gs" id="greetedSec">
+      <div class="guide green show" style="margin-bottom:16px">
+        <div class="guide-ey">Guest Met — Please Record</div>
+        <div class="guide-body">Capture the guest's purpose and special occasion to personalise their stay.</div>
+      </div>
+      <div class="sh"><span class="sh-text">Purpose of Visit</span><div class="sh-line"></div></div>
+      <div class="f">
+        <div class="chips">
+          <div class="chip" data-g="purpose" data-v="Leisure"              onclick="pickPurpose(this)">Leisure</div>
+          <div class="chip" data-g="purpose" data-v="Business"             onclick="pickPurpose(this)">Business</div>
+          <div class="chip" data-g="purpose" data-v="1st Time in Thailand" onclick="pickPurpose(this)">1st in Thailand</div>
+          <div class="chip" data-g="purpose" data-v="1st Time in Bangkok"  onclick="pickPurpose(this)">1st in Bangkok</div>
+          <div class="chip" data-g="purpose" data-v="Other"                onclick="pickPurpose(this)">Other</div>
+        </div>
+        <div class="other-input" id="purposeOtherWrap">
+          <input type="text" id="purposeOther" placeholder="Please specify purpose..." oninput="reOcc()">
+        </div>
+      </div>
+      <div class="sh" style="margin-top:18px"><span class="sh-text">Special Occasion</span><div class="sh-line"></div></div>
+      <div class="f">
+        <div class="chips">
+          <div class="chip" data-g="occ" data-v="Birthday"         onclick="pickOcc(this)">Birthday</div>
+          <div class="chip" data-g="occ" data-v="Anniversary"      onclick="pickOcc(this)">Anniversary</div>
+          <div class="chip" data-g="occ" data-v="Honeymoon"        onclick="pickOcc(this)">Honeymoon</div>
+          <div class="chip" data-g="occ" data-v="Graduation"       onclick="pickOcc(this)">Graduation</div>
+          <div class="chip" data-g="occ" data-v="Business Success" onclick="pickOcc(this)">Business Success</div>
+          <div class="chip" data-g="occ" data-v="Other"            onclick="pickOcc(this)">Other</div>
+          <div class="chip" data-g="occ" data-v="None"             onclick="pickOcc(this)">None</div>
+        </div>
+        <div class="other-input" id="occOtherWrap">
+          <input type="text" id="occOther" placeholder="Please specify occasion..." oninput="reOcc()">
+        </div>
+      </div>
+      <div class="guide gold" id="occGuide">
+        <div class="guide-ey">Suggested Butler Touch</div>
+        <div class="guide-body" id="occTxt"></div>
+      </div>
+    </div>
+
+    <hr class="div">
+    <div class="f"><label class="fl">Remarks / Notes</label><input type="text" id="remarks" placeholder="Any additional observations..."></div>
+    <div class="f"><label class="fl">Butler Name</label><input type="text" id="butlerName"></div>
+
+    <button class="btn-log" id="btnLog" onclick="save()"><span>Save to Log &nbsp;›</span></button>
+  </div>
+
+  <div class="log-panel">
+    <div class="stats">
+      <div class="stat">   <span class="stat-v" id="sT">0</span><span class="stat-l">Total Today</span></div>
+      <div class="stat g"> <span class="stat-v" id="sG">0</span><span class="stat-l">Greeted</span></div>
+      <div class="stat r"> <span class="stat-v" id="sM">0</span><span class="stat-l">Missed</span></div>
+      <div class="stat p"> <span class="stat-v" id="sR">—</span><span class="stat-l">Success %</span></div>
+    </div>
+    <div class="log-body">
+      <div class="log-bar">
+        <div class="log-heading" id="logTitle">Today's Log</div>
+        <div class="log-controls">
+          <select class="filter-select" id="butlerFilter" onchange="renderLog()"><option value="">All Butlers</option></select>
+          <input type="date" id="logDate" onchange="renderLog()">
+        </div>
+      </div>
+      <div id="coBanner"></div>
+      <div id="entries"><div class="loading">Loading from Google Sheets</div></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="view" id="view-summary">
+<div class="summary-view">
+  <div class="summary-tabs">
+    <button class="s-tab active" data-stab="week"   onclick="showSummary('week', this)">This Week</button>
+    <button class="s-tab"        data-stab="month"  onclick="showSummary('month', this)">This Month</button>
+    <button class="s-tab"        data-stab="all"    onclick="showSummary('all', this)">All Time</button>
+    <button class="s-tab"        data-stab="butler" onclick="showSummary('butler', this)">By Butler</button>
+  </div>
+  <div class="s-section active" id="s-week"><div class="s-title">Weekly Summary</div><div class="s-sub" id="weekRange"></div><div id="weekContent"></div></div>
+  <div class="s-section" id="s-month"><div class="s-title">Monthly Summary</div><div class="s-sub" id="monthRange"></div><div id="monthContent"></div></div>
+  <div class="s-section" id="s-all"><div class="s-title">All-Time Summary</div><div class="s-sub">Lifetime performance overview</div><div id="allContent"></div></div>
+  <div class="s-section" id="s-butler"><div class="s-title">Performance by Butler</div><div class="s-sub">Individual butler statistics</div><div id="butlerContent"></div></div>
+</div>
+</div>
+
+<div class="modal-back" id="modal">
+  <div class="modal">
+    <div class="modal-ey" id="modalEy">Notice</div>
+    <div class="modal-t" id="modalT"></div>
+    <div class="modal-b" id="modalB"></div>
+    <div class="modal-actions" id="modalActions"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span class="toast-icon" id="tIcon"></span><span id="tMsg"></span></div>
+
+<script>
+const LS_API_KEY = 'butler_api_url';
+const LS_NAME_KEY = 'butler_name';
+const LS_CACHE = 'butler_cache_v1';
+let API_URL = localStorage.getItem(LS_API_KEY) || '';
+let BUTLER_NAME = localStorage.getItem(LS_NAME_KEY) || '';
+let logs = [];
+let editingId = null;
+let currentView = 'tracker';
+
+function checkSetup() {
+  if (!API_URL || !BUTLER_NAME) {
+    document.getElementById('setupScreen').classList.add('show');
+    if (API_URL) document.getElementById('apiUrlInput').value = API_URL;
+    if (BUTLER_NAME) document.getElementById('butlerNameInput').value = BUTLER_NAME;
+    return false;
+  }
+  return true;
+}
+function saveSetup() {
+  const url = document.getElementById('apiUrlInput').value.trim();
+  const name = document.getElementById('butlerNameInput').value.trim();
+  if (!url || !name) { toast('—', 'Please enter both URL and your name.'); return; }
+  if (!url.startsWith('https://script.google.com/')) { toast('—', 'URL must start with https://script.google.com/'); return; }
+  API_URL = url; BUTLER_NAME = name;
+  localStorage.setItem(LS_API_KEY, url);
+  localStorage.setItem(LS_NAME_KEY, name);
+  document.getElementById('butlerName').value = name;
+  document.getElementById('setupScreen').classList.remove('show');
+  init();
+}
+function openSettings() {
+  showModal({
+    ey: 'Settings', title: 'Update details',
+    body: `Current butler: <strong>${BUTLER_NAME}</strong><br><br>To change your name or reconnect, click Reset Setup.`,
+    actions: [
+      { label:'Close', fn: null },
+      { label:'Reset Setup', cls:'primary', fn: () => { localStorage.removeItem(LS_API_KEY); localStorage.removeItem(LS_NAME_KEY); location.reload(); } },
+    ],
+  });
+}
+
+function setSyncStatus(state, text) {
+  const dot = document.getElementById('syncDot');
+  dot.className = 'sync-dot';
+  if (state === 'syncing') dot.classList.add('syncing');
+  else if (state === 'offline') dot.classList.add('offline');
+  document.getElementById('syncText').textContent = text;
+}
+
+async function apiCall(action, payload) {
+  setSyncStatus('syncing', 'Syncing');
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST', mode: 'cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action, payload }),
+    });
+    const data = await res.json();
+    setSyncStatus('online', 'Synced');
+    return data;
+  } catch (e) { setSyncStatus('offline', 'Offline'); console.error(e); throw e; }
+}
+
+async function loadLogs() {
+  try {
+    const data = await apiCall('list', {});
+    if (data && data.ok) {
+      logs = data.logs || [];
+      localStorage.setItem(LS_CACHE, JSON.stringify(logs));
+      populateButlerFilter(); renderLog();
+      if (currentView === 'summary') renderSummary();
+    }
+  } catch (e) {
+    const cached = JSON.parse(localStorage.getItem(LS_CACHE) || '[]');
+    if (cached.length) { logs = cached; populateButlerFilter(); renderLog(); toast('!', 'Showing cached data — offline'); }
+    else { document.getElementById('entries').innerHTML = `<div class="empty"><div class="empty-orn">⚠</div><div class="empty-txt">Cannot connect to Google Sheets.<br>Check internet and API URL.</div></div>`; }
+  }
+}
+
+function todayStr() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+function fmtDate(s) { if (!s) return ''; const [y,m,d] = s.split('-'); return new Date(+y, +m-1, +d).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }); }
+function dateStrFromTs(ts) { const d = new Date(ts); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+function weekStart(d) { const dt = new Date(d); const day = dt.getDay(); const diff = dt.getDate() - day + (day === 0 ? -6 : 1); return new Date(dt.setDate(diff)); }
+
+function tick() {
+  const n = new Date();
+  document.getElementById('hDate').textContent = n.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  document.getElementById('hTime').textContent = n.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+}
+
+function getCarriedOver(dateStr) {
+  const targetDate = new Date(dateStr);
+  const result = []; const seen = new Set();
+  logs.forEach(e => {
+    if (e.status !== 'Missed') return;
+    const eDate = new Date(e.date);
+    if (eDate >= targetDate) return;
+    const key = (e.room + '|' + e.guest).toLowerCase();
+    if (seen.has(key)) return;
+    const resolved = logs.some(x => { const xDate = new Date(x.date); return x.id !== e.id && (x.room + '|' + x.guest).toLowerCase() === key && xDate > eDate && xDate <= targetDate; });
+    if (!resolved) { seen.add(key); result.push(e); }
+  });
+  return result;
+}
+
+function showView(v, btn) {
+  currentView = v;
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.getElementById('view-' + v).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (v === 'summary') renderSummary();
+}
+function showSummary(s, btn) {
+  document.querySelectorAll('.s-section').forEach(el => el.classList.remove('active'));
+  document.getElementById('s-' + s).classList.add('active');
+  document.querySelectorAll('.s-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function pick(el) { document.querySelectorAll(`[data-g="${el.dataset.g}"]`).forEach(c => c.classList.remove('on','on-g','on-r')); el.classList.add('on'); }
+function val(g) { const el = document.querySelector(`[data-g="${g}"].on, [data-g="${g}"].on-g, [data-g="${g}"].on-r`); return el ? el.dataset.v : ''; }
+function pickPurpose(el) { pick(el); document.getElementById('purposeOtherWrap').classList.toggle('show', el.dataset.v === 'Other'); reOcc(); }
+function pickOcc(el) { pick(el); document.getElementById('occOtherWrap').classList.toggle('show', el.dataset.v === 'Other'); reOcc(); }
+function toggleCheck(input, itemId) { document.getElementById(itemId).classList.toggle('checked', input.checked); }
+
+function setStatus(el) {
+  document.querySelectorAll('[data-g="status"]').forEach(c => c.classList.remove('on','on-g','on-r'));
+  if (el.dataset.v === 'Greeted') { el.classList.add('on-g'); document.getElementById('missedSec').classList.remove('show'); document.getElementById('greetedSec').classList.add('show'); }
+  else { el.classList.add('on-r'); document.getElementById('missedSec').classList.add('show'); document.getElementById('greetedSec').classList.remove('show'); }
+}
+
+const REASONS = {
+  'Guest Not In Room':          'Log the time of attempt. The guest is away — <strong>return in 1–2 hours.</strong>',
+  'Q Room — Quiet Please':      'Respect the guest\'s preference. <strong>Do not knock.</strong> Plan a gentle follow-up the following morning.',
+  'DND — Do Not Disturb':       '<strong>Do not knock under any circumstances.</strong> Re-check after 2–3 hours.',
+  'Come Later (Guest Request)': '<strong>Honour the guest\'s requested time precisely.</strong> Set a personal reminder.',
+  'Other':                      '<strong>Describe the circumstance in Remarks.</strong> Inform supervisor if escalation needed.',
+};
+function setReason(el) {
+  document.querySelectorAll('[data-g="reason"]').forEach(c => c.classList.remove('on','on-g','on-r'));
+  el.classList.add('on-r');
+  document.getElementById('reasonTxt').innerHTML = REASONS[el.dataset.v] || '';
+  document.getElementById('reasonGuide').classList.add('show');
+  reFup();
+}
+function reFup() {
+  const nights = parseInt(document.getElementById('nights').value) || 0;
+  const attempt = val('att'); const late = val('late'); const reason = val('reason');
+  const box = document.getElementById('fupGuide'); const txt = document.getElementById('fupTxt');
+  if (!reason) return;
+  let msg = '';
+  if (reason === 'Come Later (Guest Request)') msg = 'Return at the <strong>exact time requested</strong>. Set a personal reminder.';
+  else if (late === 'yes') msg = '<strong>Follow up tomorrow morning.</strong> Guest arrived late and may be resting.';
+  else if (nights === 1) msg = '<strong>Follow up later today — urgent.</strong> One night only.';
+  else if (attempt === '2nd' || attempt === '3rd') msg = `<strong>Follow up tomorrow.</strong> Already attempted ${attempt} times today.`;
+  else msg = 'Attempt again <strong>within the next 1–2 hours</strong>.';
+  txt.innerHTML = msg; box.classList.add('show');
+}
+
+const OCC = {
+  'Birthday':         'Arrange a surprise — <strong>birthday cake, hand-written card,</strong> or balloons.',
+  'Anniversary':      'Offer <strong>room decoration with flowers and candles,</strong> or romantic dinner.',
+  'Honeymoon':        'Prepare <strong>champagne and rose petals.</strong> Couple\'s spa package.',
+  'Graduation':       'Personalised <strong>congratulatory note</strong> and small celebratory amenity.',
+  'Business Success': 'Offer a <strong>celebratory welcome drink</strong>.',
+  'Other':            '<strong>Customise a thoughtful touch</strong> based on description.',
+};
+const PURP = {
+  'Leisure':              'Recommend <strong>in-hotel experiences</strong> — spa, rooftop bar, excursions.',
+  'Business':             'Ensure <strong>fast Wi-Fi, quiet workspace,</strong> printing/transport.',
+  '1st Time in Thailand': 'Share <strong>cultural highlights and must-see destinations.</strong>',
+  '1st Time in Bangkok':  'Recommend <strong>iconic landmarks and local cuisine.</strong>',
+  'Other':                '<strong>Tailor recommendations</strong> to the purpose described.',
+};
+function reOcc() {
+  const occ = val('occ'); const purp = val('purpose');
+  const box = document.getElementById('occGuide'); const txt = document.getElementById('occTxt');
+  let content = '';
+  if (occ && OCC[occ]) content += OCC[occ] + (PURP[purp] ? '<br><br>' : '');
+  if (purp && PURP[purp]) content += PURP[purp];
+  if (!content) { box.classList.remove('show'); return; }
+  txt.innerHTML = content; box.classList.add('show');
+}
+
+function showModal({ey, title, body, actions}) {
+  document.getElementById('modalEy').textContent = ey || 'Notice';
+  document.getElementById('modalT').textContent  = title || '';
+  document.getElementById('modalB').innerHTML    = body || '';
+  const ac = document.getElementById('modalActions');
+  ac.innerHTML = '';
+  actions.forEach(a => {
+    const b = document.createElement('button');
+    b.className = 'modal-btn ' + (a.cls || '');
+    b.textContent = a.label;
+    b.onclick = () => { closeModal(); a.fn && a.fn(); };
+    ac.appendChild(b);
+  });
+  document.getElementById('modal').classList.add('show');
+}
+function closeModal() { document.getElementById('modal').classList.remove('show'); }
+
+function buildEntry(id) {
+  const room = document.getElementById('roomNo').value.trim();
+  const guest = document.getElementById('guestName').value.trim();
+  const status = val('status');
+  if (!room || !guest || !status) { toast('—', 'Please enter Room, Guest, and Outcome.'); return null; }
+  const nights = document.getElementById('nights').value;
+  const time = document.getElementById('aTime').value;
+  const attempt = val('att'); const reason = val('reason');
+  let purpose = val('purpose'); let occ = val('occ');
+  if (purpose === 'Other') { const v = document.getElementById('purposeOther').value.trim(); if (v) purpose = 'Other: ' + v; }
+  if (occ === 'Other') { const v = document.getElementById('occOther').value.trim(); if (v) occ = 'Other: ' + v; }
+  const late = val('late');
+  const cardPlaced = document.getElementById('chkCard').checked;
+  const traceSet = document.getElementById('chkTrace').checked;
+  const remarks = document.getElementById('remarks').value.trim();
+  const butler = document.getElementById('butlerName').value.trim() || BUTLER_NAME;
+  let followUp = '', urgent = false;
+  if (status === 'Missed') {
+    if (reason === 'Come Later (Guest Request)') followUp = 'Return at guest\'s requested time';
+    else if (late === 'yes') followUp = 'Follow Up Tomorrow Morning';
+    else if (parseInt(nights) === 1) { followUp = 'Follow Up Later Today — Urgent'; urgent = true; }
+    else if (attempt === '2nd' || attempt === '3rd') followUp = 'Follow Up Tomorrow';
+    else followUp = 'Try Again Within 1–2 Hours';
+  }
+  const editingEntry = id ? logs.find(l => l.id === id) : null;
+  const entryDate = editingEntry ? editingEntry.date : (document.getElementById('logDate').value || todayStr());
+  return {
+    id: id || Date.now(), date: entryDate, room, guest, nights, time, attempt, status,
+    reason, purpose, occ, followUp, urgent, cardPlaced, traceSet, butler, remarks,
+    ts: editingEntry ? editingEntry.ts : new Date().toISOString(),
+    updatedTs: id ? new Date().toISOString() : null,
+  };
+}
+
+async function save() {
+  if (editingId) {
+    const updated = buildEntry(editingId);
+    if (!updated) return;
+    document.getElementById('btnLog').disabled = true;
+    try {
+      await apiCall('update', updated);
+      const idx = logs.findIndex(l => l.id === editingId);
+      if (idx >= 0) logs[idx] = updated;
+      localStorage.setItem(LS_CACHE, JSON.stringify(logs));
+      toast('✦', `${updated.guest} · Room ${updated.room} updated.`);
+      editingId = null; reset(); renderLog(); populateButlerFilter();
+    } catch (e) { toast('!', 'Failed to update.'); }
+    document.getElementById('btnLog').disabled = false; return;
+  }
+  const room = document.getElementById('roomNo').value.trim();
+  const guest = document.getElementById('guestName').value.trim();
+  const status = val('status');
+  if (!room || !guest || !status) { toast('—', 'Please enter Room, Guest, and Outcome.'); return; }
+  const today = document.getElementById('logDate').value || todayStr();
+  const existing = logs.find(l => l.date === today && l.room.toLowerCase() === room.toLowerCase());
+  if (existing) {
+    showModal({
+      ey: 'Existing Entry Detected', title: `Room ${existing.room} already logged today`,
+      body: `<strong>${existing.guest} (Room ${existing.room})</strong> already exists for <strong>${fmtDate(today)}</strong>, logged by <strong>${existing.butler}</strong>.<br><br>Overwrite this entry?`,
+      actions: [{ label:'Cancel', fn: null }, { label:'Overwrite', cls:'primary', fn: () => doOverwrite(existing.id) }],
+    });
+    return;
+  }
+  const entry = buildEntry(null); if (!entry) return;
+  document.getElementById('btnLog').disabled = true;
+  try {
+    await apiCall('add', entry);
+    logs.unshift(entry);
+    localStorage.setItem(LS_CACHE, JSON.stringify(logs));
+    renderLog(); reset(); populateButlerFilter();
+    toast(entry.status === 'Greeted' ? '✦' : '○', `${entry.guest} · Room ${entry.room} saved.`);
+  } catch (e) { toast('!', 'Failed to save.'); }
+  document.getElementById('btnLog').disabled = false;
+}
+
+async function doOverwrite(id) {
+  const updated = buildEntry(id); if (!updated) return;
+  document.getElementById('btnLog').disabled = true;
+  try {
+    await apiCall('update', updated);
+    const idx = logs.findIndex(l => l.id === id);
+    if (idx >= 0) logs[idx] = updated;
+    localStorage.setItem(LS_CACHE, JSON.stringify(logs));
+    renderLog(); reset();
+    toast('✦', `Room ${updated.room} overwritten.`);
+  } catch (e) { toast('!', 'Failed to overwrite.'); }
+  document.getElementById('btnLog').disabled = false;
+}
+
+function editEntry(id) {
+  const e = logs.find(l => l.id === id); if (!e) return;
+  editingId = id;
+  document.getElementById('editBanner').classList.add('show');
+  document.getElementById('editLabel').textContent = `${e.guest} · Room ${e.room} · ${fmtDate(e.date)}`;
+  document.getElementById('btnLog').classList.add('editing');
+  document.getElementById('btnLog').querySelector('span').textContent = 'Update Entry  ›';
+  document.getElementById('roomNo').value = e.room;
+  document.getElementById('guestName').value = e.guest;
+  document.getElementById('nights').value = e.nights || '';
+  document.getElementById('aTime').value = e.time || '';
+  document.getElementById('remarks').value = e.remarks || '';
+  document.getElementById('butlerName').value = e.butler || BUTLER_NAME;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('on','on-g','on-r'));
+  if (e.attempt) { const c = document.querySelector(`[data-g="att"][data-v="${e.attempt}"]`); if (c) c.classList.add('on'); }
+  const statusEl = document.querySelector(`[data-g="status"][data-v="${e.status}"]`);
+  if (statusEl) setStatus(statusEl);
+  if (e.status === 'Missed') {
+    if (e.reason) { const r = document.querySelector(`[data-g="reason"][data-v="${e.reason}"]`); if (r) setReason(r); }
+    document.getElementById('chkCard').checked = !!e.cardPlaced;
+    document.getElementById('chkTrace').checked = !!e.traceSet;
+    document.getElementById('cardItem').classList.toggle('checked', !!e.cardPlaced);
+    document.getElementById('traceItem').classList.toggle('checked', !!e.traceSet);
+  } else if (e.status === 'Greeted') {
+    if (e.purpose) {
+      let pb = e.purpose; let po = '';
+      if (e.purpose.startsWith('Other:')) { pb = 'Other'; po = e.purpose.replace(/^Other:\s*/,''); }
+      const p = document.querySelector(`[data-g="purpose"][data-v="${pb}"]`);
+      if (p) { pickPurpose(p); if (po) document.getElementById('purposeOther').value = po; }
+    }
+    if (e.occ) {
+      let ob = e.occ; let oo = '';
+      if (e.occ.startsWith('Other:')) { ob = 'Other'; oo = e.occ.replace(/^Other:\s*/,''); }
+      const o = document.querySelector(`[data-g="occ"][data-v="${ob}"]`);
+      if (o) { pickOcc(o); if (oo) document.getElementById('occOther').value = oo; }
+    }
+    reOcc();
+  }
+  document.querySelector('.form-panel').scrollTop = 0;
+  toast('✎', 'Edit mode — make changes and click Update.');
+}
+function cancelEdit() {
+  editingId = null;
+  document.getElementById('editBanner').classList.remove('show');
+  document.getElementById('btnLog').classList.remove('editing');
+  document.getElementById('btnLog').querySelector('span').textContent = 'Save to Log  ›';
+  reset();
+}
+function delEntry(id) {
+  const e = logs.find(l => l.id === id); if (!e) return;
+  showModal({
+    ey: 'Confirm Deletion', title: 'Remove this entry?',
+    body: `Permanently remove <strong>${e.guest} (Room ${e.room})</strong>, logged by ${e.butler}.`,
+    actions: [{ label:'Cancel', fn: null }, { label:'Delete', cls:'danger primary', fn: async () => {
+      try { await apiCall('delete', { id }); logs = logs.filter(l => l.id !== id); localStorage.setItem(LS_CACHE, JSON.stringify(logs)); renderLog(); toast('○', 'Entry removed.'); }
+      catch (err) { toast('!', 'Failed to delete.'); }
+    }}],
+  });
+}
+
+function populateButlerFilter() {
+  const sel = document.getElementById('butlerFilter');
+  const current = sel.value;
+  const butlers = [...new Set(logs.map(l => l.butler).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">All Butlers</option>' + butlers.map(b => `<option value="${b}">${b}</option>`).join('');
+  if (current && butlers.includes(current)) sel.value = current;
+}
+
+function renderLog() {
+  const dateSel = document.getElementById('logDate').value || todayStr();
+  const butlerFilter = document.getElementById('butlerFilter').value;
+  document.getElementById('logTitle').textContent = dateSel === todayStr() ? "Today's Log" : `Log · ${fmtDate(dateSel)}`;
+  let dayLogs = logs.filter(l => l.date === dateSel);
+  let carry = getCarriedOver(dateSel);
+  if (butlerFilter) { dayLogs = dayLogs.filter(l => l.butler === butlerFilter); carry = carry.filter(l => l.butler === butlerFilter); }
+  const greeted = dayLogs.filter(l => l.status === 'Greeted').length;
+  const missed = dayLogs.filter(l => l.status === 'Missed').length;
+  const total = dayLogs.length;
+  document.getElementById('sT').textContent = total;
+  document.getElementById('sG').textContent = greeted;
+  document.getElementById('sM').textContent = missed;
+  document.getElementById('sR').textContent = total ? Math.round(greeted/total*100)+'%' : '—';
+  const coBan = document.getElementById('coBanner');
+  if (carry.length && dateSel === todayStr()) coBan.innerHTML = `<div class="co-banner"><strong>${carry.length} guest${carry.length>1?'s':''} carried over</strong> — previously missed and still requires follow-up.</div>`;
+  else coBan.innerHTML = '';
+  const all = (dateSel === todayStr() ? [...carry.map(c => ({...c, _carry:true}))] : []).concat(dayLogs);
+  const c = document.getElementById('entries');
+  if (!all.length) { c.innerHTML = `<div class="empty"><div class="empty-orn">✦</div><div class="empty-txt">No entries for this date.<br>Begin logging below.</div></div>`; return; }
+  c.innerHTML = all.map(e => {
+    const isG = e.status === 'Greeted';
+    let tags = `<span class="tag ${isG?'tg':'tm'}">${isG ? '✦ Greeted' : '✕ Missed'}</span>`;
+    if (e.attempt) tags += `<span class="tag tr">Attempt ${e.attempt}</span>`;
+    if (e.reason) tags += `<span class="tag tr">${e.reason}</span>`;
+    if (e.purpose) tags += `<span class="tag tr">${e.purpose}</span>`;
+    if (e.occ && e.occ !== 'None') tags += `<span class="tag to">${e.occ}</span>`;
+    if (e.nights) tags += `<span class="tag tr">${e.nights} Night${e.nights>1?'s':''}</span>`;
+    if (e.butler) tags += `<span class="tag tb">${e.butler}</span>`;
+    const badge = (!isG && e.followUp) ? `<div class="fup${e.urgent?' urg':''}"><strong>Follow-Up</strong>${e.followUp}</div>` : '';
+    let cardTrace = '';
+    if (!isG) cardTrace = `<div class="card-trace"><span class="${e.cardPlaced?'yes':'no'}">${e.cardPlaced?'✓':'✕'} Card ${e.cardPlaced?'Placed':'Not Placed'}</span><span class="${e.traceSet?'yes':'no'}">${e.traceSet?'✓':'✕'} Trace ${e.traceSet?'Set':'Not Set'}</span></div>`;
+    const notes = e.remarks ? `<div class="e-notes">Remarks: ${e.remarks}</div>` : '';
+    const carryB = e._carry ? `<span class="carry-badge">Carry-Over</span>` : '';
+    const carryD = e._carry ? ` · originally ${fmtDate(e.date)}` : '';
+    const actions = e._carry
+      ? `<div class="entry-actions"><button class="e-act-btn" style="border-color:var(--green);color:var(--green-txt)" onclick="quickGreet(${e.id})">✦ Met Guest</button><button class="e-act-btn" onclick="editEntry(${e.id})">Edit</button></div>`
+      : `<div class="entry-actions"><button class="e-act-btn" onclick="editEntry(${e.id})">Edit</button><button class="e-act-btn del" onclick="delEntry(${e.id})">Delete</button></div>`;
+    return `<div class="entry ${isG?'eg':'em'}${e._carry?' is-carry':''}">
+      <div class="entry-head">
+        <div><div class="e-room">Room ${e.room} ${carryB}</div><div class="e-guest">${e.guest}</div></div>
+        <div class="e-meta"><div class="e-time">${e.time || '—'}</div><div class="e-date">${fmtDate(e.date)}${carryD}</div>${actions}</div>
+      </div>
+      <div class="e-tags">${tags}</div>${badge}${cardTrace}${notes}
+    </div>`;
+  }).join('');
+}
+
+function renderSummary() { renderWeek(); renderMonth(); renderAll(); renderByButler(); }
+
+function buildStats(filtered) {
+  const total = filtered.length;
+  const greeted = filtered.filter(l => l.status === 'Greeted').length;
+  const missed = total - greeted;
+  const rate = total ? Math.round(greeted/total*100) : 0;
+  const missedEntries = filtered.filter(l => l.status === 'Missed');
+  const cardPlaced = missedEntries.filter(l => l.cardPlaced).length;
+  const traceSet = missedEntries.filter(l => l.traceSet).length;
+  const cardPct = missedEntries.length ? Math.round(cardPlaced/missedEntries.length*100) : 0;
+  const tracePct = missedEntries.length ? Math.round(traceSet/missedEntries.length*100) : 0;
+  const reasons = {};
+  missedEntries.forEach(l => { if (l.reason) reasons[l.reason] = (reasons[l.reason]||0)+1; });
+  const purposes = {};
+  filtered.filter(l => l.status==='Greeted' && l.purpose).forEach(l => {
+    const key = l.purpose.startsWith('Other:') ? 'Other' : l.purpose;
+    purposes[key] = (purposes[key]||0)+1;
+  });
+  const occs = {};
+  filtered.filter(l => l.status==='Greeted' && l.occ && l.occ !== 'None').forEach(l => {
+    const key = l.occ.startsWith('Other:') ? 'Other' : l.occ;
+    occs[key] = (occs[key]||0)+1;
+  });
+  return { total, greeted, missed, rate, cardPlaced, traceSet, cardPct, tracePct, missedCount: missedEntries.length, reasons, purposes, occs };
+}
+
+function statsCardsHtml(s) {
+  return `<div class="s-grid">
+    <div class="s-card"><div class="s-card-l">Total Attempts</div><div class="s-card-v">${s.total}</div></div>
+    <div class="s-card green"><div class="s-card-l">Greeted</div><div class="s-card-v">${s.greeted}</div></div>
+    <div class="s-card red"><div class="s-card-l">Missed</div><div class="s-card-v">${s.missed}</div></div>
+    <div class="s-card"><div class="s-card-l">Success Rate</div><div class="s-card-v">${s.total?s.rate+'%':'—'}</div></div>
+  </div>${s.missedCount ? `<div class="s-grid">
+    <div class="s-card"><div class="s-card-l">Welcome Cards</div><div class="s-card-v">${s.cardPct}%</div><div class="s-card-sub">${s.cardPlaced} of ${s.missedCount}</div></div>
+    <div class="s-card"><div class="s-card-l">Traces Set</div><div class="s-card-v">${s.tracePct}%</div><div class="s-card-sub">${s.traceSet} of ${s.missedCount}</div></div>
+  </div>` : ''}`;
+}
+
+function breakdownHtml(title, obj) {
+  const entries = Object.entries(obj).sort((a,b) => b[1]-a[1]);
+  if (!entries.length) return '';
+  const max = Math.max(...entries.map(e => e[1]));
+  return `<div class="s-row-title">${title}</div><div>${entries.map(([k,v]) => `<div class="bar-row"><div class="bar-label">${k}</div><div class="bar-track"><div class="bar-fill" style="width:${max?(v/max*100):0}%"></div></div><div class="bar-value">${v}</div></div>`).join('')}</div>`;
+}
+
+function getDailyBreakdown(filtered) {
+  const byDate = {};
+  filtered.forEach(l => {
+    if (!byDate[l.date]) byDate[l.date] = { date:l.date, total:0, greeted:0, missed:0 };
+    byDate[l.date].total++;
+    if (l.status === 'Greeted') byDate[l.date].greeted++; else byDate[l.date].missed++;
+  });
+  return Object.values(byDate).map(d => ({...d, rate: d.total ? Math.round(d.greeted/d.total*100) : 0})).sort((a,b) => b.date.localeCompare(a.date));
+}
+
+function dailyTableHtml(dailyData) {
+  if (!dailyData.length) return '';
+  return `<div class="s-row-title">Daily Breakdown</div><table class="s-table"><thead><tr><th>Date</th><th>Total</th><th>Greeted</th><th>Missed</th><th>Success %</th></tr></thead><tbody>${dailyData.map(d => { const cls = d.rate >= 80 ? '' : (d.rate >= 50 ? 'mid' : 'low'); return `<tr><td>${fmtDate(d.date)}</td><td class="num">${d.total}</td><td class="num" style="color:var(--green-txt)">${d.greeted}</td><td class="num" style="color:var(--red-txt)">${d.missed}</td><td class="pct ${cls}">${d.total ? d.rate+'%' : '—'}</td></tr>`; }).join('')}</tbody></table>`;
+}
+
+function renderWeek() {
+  const today = new Date();
+  const wkStart = weekStart(new Date(today));
+  const wkEnd = new Date(wkStart); wkEnd.setDate(wkStart.getDate()+6);
+  const wkStartStr = dateStrFromTs(wkStart); const wkEndStr = dateStrFromTs(wkEnd);
+  document.getElementById('weekRange').textContent = `${fmtDate(wkStartStr)} — ${fmtDate(wkEndStr)}`;
+  const filtered = logs.filter(l => l.date >= wkStartStr && l.date <= wkEndStr);
+  const s = buildStats(filtered);
+  document.getElementById('weekContent').innerHTML = statsCardsHtml(s) + dailyTableHtml(getDailyBreakdown(filtered)) + breakdownHtml('Missed Reasons', s.reasons) + breakdownHtml('Purpose of Visit', s.purposes) + breakdownHtml('Special Occasions', s.occs);
+}
+
+function renderMonth() {
+  const today = new Date();
+  const y = today.getFullYear(), m = today.getMonth();
+  const ms = `${y}-${String(m+1).padStart(2,'0')}-01`;
+  const lastDay = new Date(y, m+1, 0).getDate();
+  const me = `${y}-${String(m+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+  document.getElementById('monthRange').textContent = today.toLocaleDateString('en-GB', { month:'long', year:'numeric' });
+  const filtered = logs.filter(l => l.date >= ms && l.date <= me);
+  const s = buildStats(filtered);
+  document.getElementById('monthContent').innerHTML = statsCardsHtml(s) + dailyTableHtml(getDailyBreakdown(filtered)) + breakdownHtml('Missed Reasons', s.reasons) + breakdownHtml('Purpose of Visit', s.purposes) + breakdownHtml('Special Occasions', s.occs);
+}
+
+function renderAll() {
+  const s = buildStats(logs);
+  const daily = getDailyBreakdown(logs).slice(0, 30);
+  document.getElementById('allContent').innerHTML = statsCardsHtml(s) + (daily.length ? `<div class="s-row-title">Last 30 Days</div>` + dailyTableHtml(daily).replace('<div class="s-row-title">Daily Breakdown</div>','') : '') + breakdownHtml('Missed Reasons', s.reasons) + breakdownHtml('Purpose of Visit', s.purposes) + breakdownHtml('Special Occasions', s.occs);
+}
+
+function renderByButler() {
+  const byButler = {};
+  logs.forEach(l => {
+    if (!l.butler) return;
+    if (!byButler[l.butler]) byButler[l.butler] = { butler: l.butler, total:0, greeted:0, missed:0 };
+    byButler[l.butler].total++;
+    if (l.status === 'Greeted') byButler[l.butler].greeted++; else byButler[l.butler].missed++;
+  });
+  const rows = Object.values(byButler).map(b => ({...b, rate: b.total ? Math.round(b.greeted/b.total*100) : 0})).sort((a,b) => b.rate - a.rate);
+  if (!rows.length) { document.getElementById('butlerContent').innerHTML = `<div class="empty"><div class="empty-orn">✦</div><div class="empty-txt">No data yet.</div></div>`; return; }
+  document.getElementById('butlerContent').innerHTML = `<table class="s-table"><thead><tr><th>Butler</th><th>Total</th><th>Greeted</th><th>Missed</th><th>Success %</th></tr></thead><tbody>${rows.map(r => { const cls = r.rate >= 80 ? '' : (r.rate >= 50 ? 'mid' : 'low'); return `<tr><td><strong style="color:var(--gold-light)">${r.butler}</strong></td><td class="num">${r.total}</td><td class="num" style="color:var(--green-txt)">${r.greeted}</td><td class="num" style="color:var(--red-txt)">${r.missed}</td><td class="pct ${cls}">${r.rate}%</td></tr>`; }).join('')}</tbody></table>`;
+}
+
+async function manualRefresh() {
+  const btn = document.getElementById('refreshBtn');
+  btn.style.opacity = '0.4';
+  btn.style.pointerEvents = 'none';
+  await loadLogs();
+  btn.style.opacity = '';
+  btn.style.pointerEvents = '';
+  toast('↻', 'Data refreshed.');
+}
+
+async function quickGreet(id) {
+  const e = logs.find(l => l.id === id); if (!e) return;
+  const n = new Date();
+  const timeStr = String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0');
+  const updated = { ...e, status: 'Greeted', reason: '', followUp: '', urgent: false, date: todayStr(), time: timeStr, updatedTs: n.toISOString() };
+  try {
+    await apiCall('add', { ...updated, id: Date.now() });
+    logs.unshift({ ...updated, id: Date.now() });
+    localStorage.setItem(LS_CACHE, JSON.stringify(logs));
+    renderLog();
+    toast('✦', `${e.guest} · Room ${e.room} — Greeted!`);
+  } catch (err) { toast('!', 'Failed to save.'); }
+}
+
+
+  ['roomNo','guestName','nights','remarks','purposeOther','occOther'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('on','on-g','on-r'));
+  document.getElementById('missedSec').classList.remove('show');
+  document.getElementById('greetedSec').classList.remove('show');
+  ['reasonGuide','fupGuide','occGuide'].forEach(id => document.getElementById(id).classList.remove('show'));
+  document.getElementById('purposeOtherWrap').classList.remove('show');
+  document.getElementById('occOtherWrap').classList.remove('show');
+  document.getElementById('chkCard').checked = false;
+  document.getElementById('chkTrace').checked = false;
+  document.getElementById('cardItem').classList.remove('checked');
+  document.getElementById('traceItem').classList.remove('checked');
+  document.getElementById('butlerName').value = BUTLER_NAME;
+  if (editingId) { editingId = null; document.getElementById('editBanner').classList.remove('show'); document.getElementById('btnLog').classList.remove('editing'); document.getElementById('btnLog').querySelector('span').textContent = 'Save to Log  ›'; }
+  const n = new Date();
+  document.getElementById('aTime').value = String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+}
+
+function toast(icon, msg) {
+  const t = document.getElementById('toast');
+  document.getElementById('tIcon').textContent = icon;
+  document.getElementById('tMsg').textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+async function init() {
+  document.getElementById('logDate').value = todayStr();
+  document.getElementById('butlerName').value = BUTLER_NAME;
+  reset();
+  await loadLogs();
+  // Manual refresh only
+}
+
+window.addEventListener('load', () => {
+  tick(); setInterval(tick, 30000);
+  if (checkSetup()) init();
+});
+</script>
+</body>
+</html>
